@@ -114,7 +114,7 @@ public final class Constants {
     public static final int kRightIntakeMotorCanId = 15;
 
     public static final double kIntakeVelocity = 450;
-    public static final double kShootTowerVelocity = 480;
+    public static final double kShootTowerVelocity = 100; //200 is for demo 480 is for shooting
     public static final double kFeedNeutralVelocity = 550;
 
     public static final double kIntakeP = 0.02;
