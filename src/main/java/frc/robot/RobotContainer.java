@@ -1,247 +1,262 @@
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
 package frc.robot;
 
-import static edu.wpi.first.units.Units.Meter;
-
-import java.io.File;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
-import com.pathplanner.lib.commands.FollowPathCommand;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.controller.ProfiledPIDController;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.trajectory.Trajectory;
-import edu.wpi.first.math.trajectory.TrajectoryConfig;
-import edu.wpi.first.math.trajectory.TrajectoryGenerator;
-import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.PS4Controller.Button;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import frc.robot.Constants.DriveConstants;
+
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.RunCommand;
+
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+
 import frc.robot.Constants.IntakeConstants;
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.Commands.DriveHeadingLockedCommand;
+
 import frc.robot.Commands.Intake;
 import frc.robot.Commands.Outtake;
 import frc.robot.Commands.Shooting;
 import frc.robot.Commands.SpinUp;
+
 import frc.robot.subsystems.DriveSubsystem;
 import frc.robot.subsystems.FeederSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.RunCommand;
-import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 
-import java.lang.management.OperatingSystemMXBean;
-import java.nio.file.Path;
-import java.util.List;
-
-/*
- * This class is where the bulk of the robot should be declared.  Since Command-based is a
- * "declarative" paradigm, very little robot logic should actually be handled in the {@link Robot}
- * periodic methods (other than the scheduler calls).  Instead, the structure of the robot
- * (including subsystems, commands, and button mappings) should be declared here.
- */
 public class RobotContainer {
-        // The robot's subsystems
-        private final DriveSubsystem m_robotDrive = new DriveSubsystem();
-        private final IntakeSubsystem m_Intake = new IntakeSubsystem();
-        private final FeederSubsystem m_Feeder = new FeederSubsystem();
 
-        private final SendableChooser<Command> autoChooser;
+    // =========================================
+    // Subsystems
+    // =========================================
 
+    private final DriveSubsystem m_robotDrive =
+        new DriveSubsystem();
 
-        // The driver's controller
-        CommandXboxController m_driverController = new CommandXboxController(OperatorConstants.kDriverControllerPort);
-        private final CommandXboxController operatorController = new CommandXboxController(
-                        OperatorConstants.kOperatorControllerPort);
-        //CommandXboxController m_AbsoluController = new CommandXboxController(OperatorConstants.kAbsoluteControllerPort);
+    private final IntakeSubsystem m_Intake =
+        new IntakeSubsystem();
 
-        /**
-         * The container for the robot. Contains subsystems, OI devices, and commands.
-         */
-        public RobotContainer() {
-                // Configure the button bindings
-                configureButtonBindings();
+    private final FeederSubsystem m_Feeder =
+        new FeederSubsystem();
 
-                // Configure default commands
-                m_robotDrive.setDefaultCommand(
-                                // The left stick controls translation of the robot.
-                                // Turning is controlled by the X axis of the right stick.
-                                new RunCommand(
-                                                () -> m_robotDrive.drive(
-                                                                MathUtil.applyDeadband(m_driverController.getLeftY(),
-                                                                                OperatorConstants.kDriveDeadband),
-                                                                MathUtil.applyDeadband(m_driverController.getLeftX(),
-                                                                                OperatorConstants.kDriveDeadband),
-                                                                -MathUtil.applyDeadband(m_driverController.getRightX(),
-                                                                                OperatorConstants.kDriveDeadband),
-                                                                true),
-                                                                //   MathUtil.applyDeadband(m_AbsoluController.getLeftY(),
-                                                                //                 OperatorConstants.kDriveDeadband),
-                                                                // MathUtil.applyDeadband(m_AbsoluController.getLeftX(),
-                                                                //                 OperatorConstants.kDriveDeadband),
-                                                                // -MathUtil.applyDeadband(m_AbsoluController.getRightX(),
-                                                                //                 OperatorConstants.kDriveDeadband),
-                                                                // true),
-                                                m_robotDrive));
-                                                
-                m_driverController.leftTrigger(0.25).whileTrue(new RunCommand(
-                                () -> m_robotDrive.driveTargetAligned(
-                                                -MathUtil.applyDeadband(m_driverController.getLeftY(),
-                                                                OperatorConstants.kDriveDeadband),
-                                                -MathUtil.applyDeadband(m_driverController.getLeftX(),
-                                                                OperatorConstants.kDriveDeadband)),
-                                m_robotDrive));
+    // =========================================
+    // Controllers
+    // =========================================
 
-        
+    private final CommandXboxController m_driverController =
+        new CommandXboxController(
+            OperatorConstants.kDriverControllerPort);
+
+    private final CommandXboxController operatorController =
+        new CommandXboxController(
+            OperatorConstants.kOperatorControllerPort);
+
+    // =========================================
+    // Auto Chooser
+    // =========================================
+
+    private final SendableChooser<Command> autoChooser;
+
+    // =========================================
+    // Constructor
+    // =========================================
+
+    public RobotContainer() {
 
         registerNamedCommands();
-        autoChooser = new SendableChooser<>();
-        autoChooser.addOption("Center depo", MiddleAuto());
-        autoChooser.addOption("Left neutral", AutoBuilder.buildAuto("Left Neutral"));
-        autoChooser.addOption("Right neutral", AutoBuilder.buildAuto("Right Neutral"));
-        autoChooser.addOption("Middle shoot", AutoBuilder.buildAuto("Middle"));
-        autoChooser.addOption("Left", AutoBuilder.buildAuto("Left"));
-        autoChooser.addOption("Right", AutoBuilder.buildAuto("Right"));
-        autoChooser.addOption("Test", AutoBuilder.buildAuto("Test"));
-        autoChooser.addOption("Right Intake", AutoBuilder.buildAuto("Right Intake"));
-        autoChooser.addOption("Left Intake", AutoBuilder.buildAuto("Left Intake"));
-        autoChooser.addOption("Middle depo", AutoBuilder.buildAuto("Middle Shoot in"));
-        autoChooser.addOption("Middle sepo shoot", AutoBuilder.buildAuto("Middle Shoot in shoot"));
-        autoChooser.setDefaultOption("Do Nothing", new InstantCommand());
-        SmartDashboard.putData("Auto Chooser", autoChooser);
 
+        configureButtonBindings();
 
-        }
+m_robotDrive.setDefaultCommand(
+    new RunCommand(
+        () -> m_robotDrive.drive(
 
-        /**
-         * Use this method to define your button->command mappings. Buttons can be
-         * created by
-         * instantiating a {@link edu.wpi.first.wpilibj.GenericHID} or one of its
-         * subclasses ({@link
-         * edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then calling
-         * passing it to a
-         * {@link JoystickButton}.
-         */
-        private void configureButtonBindings() {
-                m_driverController.rightTrigger().whileTrue(new RunCommand(
-                                () -> m_robotDrive.setX(),
-                                m_robotDrive));
-                m_driverController.start().onTrue(new InstantCommand(
-                                () -> m_robotDrive.zeroHeading(),
-                                m_robotDrive));
-                 
-               m_driverController.rightBumper().whileTrue(
-                        new DriveHeadingLockedCommand(m_robotDrive, m_driverController)
-                        );
+            MathUtil.applyDeadband(
+                -m_driverController.getLeftY(),
+                OperatorConstants.kDriveDeadband),
 
+            MathUtil.applyDeadband(
+                -m_driverController.getLeftX(),
+                OperatorConstants.kDriveDeadband),
 
-                
+            MathUtil.applyDeadband(
+                -m_driverController.getRightX(),
+                OperatorConstants.kDriveDeadband)
 
-                operatorController.leftTrigger().whileTrue(new Intake(m_Intake, m_Feeder));
-                // operatorController.b().whileTrue(new Shooting(m_Intake, m_Feeder));
-                operatorController.leftBumper().whileTrue(new Outtake(m_Intake, m_Feeder));
-                // operatorController.x().whileTrue(new ClimbingOn(m_Climbing));
-                // operatorController.y().whileTrue(new ClimbingOff(m_Climbing));
-                operatorController.rightBumper().whileTrue(new SpinUp(m_Intake, IntakeConstants.kFeedNeutralVelocity)
-                                .andThen(new Shooting(m_Intake, m_Feeder, IntakeConstants.kFeedNeutralVelocity))); // feeding
-                operatorController.rightTrigger().whileTrue(new SpinUp(m_Intake, IntakeConstants.kShootTowerVelocity)
-                                .andThen(new Shooting(m_Intake, m_Feeder, IntakeConstants.kShootTowerVelocity))); // shooting
-                m_Intake.setDefaultCommand(new RunCommand(() -> m_Intake.setIntakeMotors(0), m_Intake));
-                m_Feeder.setDefaultCommand(new RunCommand(() -> m_Feeder.setFeederMotors(0), m_Feeder));
-                
-        }
+        ),
+        m_robotDrive
+    )
+);
 
+        autoChooser = AutoBuilder.buildAutoChooser();
 
-        public void registerNamedCommands() {
-                NamedCommands.registerCommand("Shoot", new SpinUp(m_Intake, IntakeConstants.kShootTowerVelocity)
-                                .andThen(new Shooting(m_Intake, m_Feeder, IntakeConstants.kShootTowerVelocity)));
-// named command for shooter to stop
-                NamedCommands.registerCommand("Stop Shooting", new InstantCommand(() -> {
-                        m_Intake.setIntakeMotors(0);
-                        m_Feeder.setFeederMotors(0);
-                }, m_Intake, m_Feeder));
+        SmartDashboard.putData(
+            "Auto Chooser",
+            autoChooser);
+    }
 
-                NamedCommands.registerCommand("Outtake", new Outtake(m_Intake, m_Feeder));
-                NamedCommands.registerCommand("Stop Outtake", new InstantCommand(() -> {
-                        m_Intake.setIntakeMotors(0);
-                        m_Feeder.setFeederMotors(0);
-                }, m_Intake, m_Feeder));
+    // =========================================
+    // Buttons
+    // =========================================
 
-                NamedCommands.registerCommand("Intake", new Intake(m_Intake, m_Feeder));
-                NamedCommands.registerCommand("Stop Intake", new InstantCommand(() -> {
-                        m_Intake.setIntakeMotors(0);
-                        m_Feeder.setFeederMotors(0);
-                }, m_Intake, m_Feeder));
-        }
+    private void configureButtonBindings() {
 
+        // Lock wheels in X
 
-        
+        m_driverController.rightTrigger()
+            .whileTrue(
+                new RunCommand(
+                    m_robotDrive::setX,
+                    m_robotDrive));
 
-        public Command MiddleAuto() {
-                 return       AutoBuilder.buildAuto("Middle Shoot");
-                
-        }
+        // Zero NavX
 
-        /**
-         * Use this to pass the autonomous command to the main {@link Robot} class.
-         *
-         * @return the command to run in autonomous
-         */
-        public Command getAutonomousCommand() {
-                // // Create config for trajectory
-                // TrajectoryConfig config = new TrajectoryConfig(
-                //                 AutoConstants.kMaxSpeedMetersPerSecond,
-                //                 AutoConstants.kMaxAccelerationMetersPerSecondSquared)
-                //                 // Add kinematics to ensure max speed is actually obeyed
-                //                 .setKinematics(DriveConstants.kDriveKinematics);
+        m_driverController.start()
+            .onTrue(
+                new InstantCommand(
+                    m_robotDrive::zeroHeading));
 
-                // // An example trajectory to follow. All units in meters.
-                // Trajectory exampleTrajectory = TrajectoryGenerator.generateTrajectory(
-                //                 // Start at the origin facing the +X direction
-                //                 new Pose2d(0, 0, new Rotation2d(0)),
-                //                 // Pass through these two interior waypoints, making an 's' curve path
-                //                 List.of(new Translation2d(0, 0), new Translation2d(0, 0)),
-                //                 // End 3 meters straight ahead of where we started, facing forward
-                //                 new Pose2d(0, 0, new Rotation2d(0)),
-                //                 config);
+        // Intake
 
-                // var thetaController = new ProfiledPIDController(
-                //                 AutoConstants.kPThetaController, 0, 0, AutoConstants.kThetaControllerConstraints);
-                // thetaController.enableContinuousInput(-Math.PI, Math.PI);
+        operatorController.leftTrigger()
+            .whileTrue(
+                new Intake(
+                    m_Intake,
+                    m_Feeder));
 
-                // SwerveControllerCommand swerveControllerCommand = new SwerveControllerCommand(
-                //                 exampleTrajectory,
-                //                 m_robotDrive::getPose, // Functional interface to feed supplier
-                //                 DriveConstants.kDriveKinematics,
+        // Outtake
 
-                //                 // Position controllers
-                //                 new PIDController(AutoConstants.kPXController, 0, 0),
-                //                 new PIDController(AutoConstants.kPYController, 0, 0),
-                //                 thetaController,
-                //                 m_robotDrive::setModuleStates,
-                //                 m_robotDrive);
+        operatorController.leftBumper()
+            .whileTrue(
+                new Outtake(
+                    m_Intake,
+                    m_Feeder));
 
-                // // Reset odometry to the starting pose of the trajectory.
-                // m_robotDrive.resetOdometry(exampleTrajectory.getInitialPose());
+        // Feed
 
-                // // Run path following command, then stop at the end.
-                // return swerveControllerCommand.andThen(() -> m_robotDrive.drive(0, 0, 0, false));
-                return autoChooser.getSelected();
-        }
+        operatorController.rightBumper()
+            .whileTrue(
+
+                new SpinUp(
+                    m_Intake,
+                    IntakeConstants.kFeedNeutralVelocity)
+
+                        .andThen(
+
+                            new Shooting(
+                                m_Intake,
+                                m_Feeder,
+                                IntakeConstants.kFeedNeutralVelocity)));
+
+        // Shoot
+
+        operatorController.rightTrigger()
+            .whileTrue(
+
+                new SpinUp(
+                    m_Intake,
+                    IntakeConstants.kShootTowerVelocity)
+
+                        .andThen(
+
+                            new Shooting(
+                                m_Intake,
+                                m_Feeder,
+                                IntakeConstants.kShootTowerVelocity)));
+
+        // Default commands
+
+        m_Intake.setDefaultCommand(
+            new RunCommand(
+                () -> m_Intake.setIntakeMotors(0),
+                m_Intake));
+
+        m_Feeder.setDefaultCommand(
+            new RunCommand(
+                () -> m_Feeder.setFeederMotors(0),
+                m_Feeder));
+    }
+
+    // =========================================
+    // PathPlanner Named Commands
+    // =========================================
+
+    private void registerNamedCommands() {
+
+        NamedCommands.registerCommand(
+            "Shoot",
+
+            new SpinUp(
+                m_Intake,
+                IntakeConstants.kShootTowerVelocity)
+
+                    .andThen(
+
+                        new Shooting(
+                            m_Intake,
+                            m_Feeder,
+                            IntakeConstants.kShootTowerVelocity)));
+
+        NamedCommands.registerCommand(
+            "Stop Shooting",
+
+            new InstantCommand(
+                () -> {
+
+                    m_Intake.setIntakeMotors(0);
+                    m_Feeder.setFeederMotors(0);
+
+                },
+                m_Intake,
+                m_Feeder));
+
+        NamedCommands.registerCommand(
+            "Intake",
+
+            new Intake(
+                m_Intake,
+                m_Feeder));
+
+        NamedCommands.registerCommand(
+            "Stop Intake",
+
+            new InstantCommand(
+                () -> {
+
+                    m_Intake.setIntakeMotors(0);
+                    m_Feeder.setFeederMotors(0);
+
+                },
+                m_Intake,
+                m_Feeder));
+
+        NamedCommands.registerCommand(
+            "Outtake",
+
+            new Outtake(
+                m_Intake,
+                m_Feeder));
+
+        NamedCommands.registerCommand(
+            "Stop Outtake",
+
+            new InstantCommand(
+                () -> {
+
+                    m_Intake.setIntakeMotors(0);
+                    m_Feeder.setFeederMotors(0);
+
+                },
+                m_Intake,
+                m_Feeder));
+    }
+
+    // =========================================
+    // Auto
+    // =========================================
+
+    public Command getAutonomousCommand() {
+        return autoChooser.getSelected();
+    }
 }
-// 67
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
