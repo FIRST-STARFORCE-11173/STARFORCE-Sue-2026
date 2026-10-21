@@ -7,6 +7,7 @@ import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.studica.frc.AHRS;
 import com.studica.frc.AHRS.NavXComType;
 
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -20,6 +21,10 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.DriveConstants;
 
 public class DriveSubsystem extends SubsystemBase {
+
+    // ==================================================
+    // Hardware
+    // ==================================================
 
     private final AHRS m_gyro =
         new AHRS(NavXComType.kMXP_SPI);
@@ -48,13 +53,35 @@ public class DriveSubsystem extends SubsystemBase {
             DriveConstants.kRearRightTurningCanId,
             DriveConstants.kBackRightChassisAngularOffset);
 
+    // ==================================================
+    // Odometry
+    // ==================================================
+
     private final SwerveDrivePoseEstimator m_poseEstimator;
 
+    // ==================================================
+    // Control
+    // ==================================================
+
     private boolean m_fieldOriented = true;
+
+    private final PIDController aimPID =
+        new PIDController(
+            0.015,
+            0.0,
+            0.001);
+
+    // ==================================================
+    // Constructor
+    // ==================================================
 
     public DriveSubsystem() {
 
         m_gyro.reset();
+
+        aimPID.enableContinuousInput(
+            -180,
+            180);
 
         m_poseEstimator =
             new SwerveDrivePoseEstimator(
@@ -66,6 +93,10 @@ public class DriveSubsystem extends SubsystemBase {
         configureAutoBuilder();
     }
 
+    // ==================================================
+    // Periodic
+    // ==================================================
+
     @Override
     public void periodic() {
 
@@ -73,6 +104,10 @@ public class DriveSubsystem extends SubsystemBase {
             Rotation2d.fromDegrees(getGyroAngle()),
             getModulePositions());
     }
+
+    // ==================================================
+    // Driving
+    // ==================================================
 
     public void drive(
             double xSpeed,
@@ -92,20 +127,19 @@ public class DriveSubsystem extends SubsystemBase {
 
         if (m_fieldOriented) {
 
-            speeds =
-                ChassisSpeeds.fromFieldRelativeSpeeds(
-                    xSpeedDelivered,
-                    ySpeedDelivered,
-                    rotDelivered,
-                    Rotation2d.fromDegrees(getGyroAngle()));
+            speeds = ChassisSpeeds.fromFieldRelativeSpeeds(
+                xSpeedDelivered,
+                ySpeedDelivered,
+                rotDelivered,
+                Rotation2d.fromDegrees(
+                    getGyroAngle()));
 
         } else {
 
-            speeds =
-                new ChassisSpeeds(
-                    xSpeedDelivered,
-                    ySpeedDelivered,
-                    rotDelivered);
+            speeds = new ChassisSpeeds(
+                xSpeedDelivered,
+                ySpeedDelivered,
+                rotDelivered);
         }
 
         driveRobotRelative(speeds);
@@ -128,26 +162,75 @@ public class DriveSubsystem extends SubsystemBase {
         m_rearRight.setDesiredState(states[3]);
     }
 
+    // ==================================================
+    // Field Target Aiming
+    // ==================================================
+
+    public double calculateAngleToTarget(
+            Pose2d targetPose) {
+
+        Pose2d robotPose = getPose();
+
+        double dx =
+            targetPose.getX()
+            - robotPose.getX();
+
+        double dy =
+            targetPose.getY()
+            - robotPose.getY();
+
+        return Math.toDegrees(
+            Math.atan2(
+                dy,
+                dx));
+    }
+
+    public double getAimRotation(
+            Pose2d targetPose) {
+
+        double desiredAngle =
+            calculateAngleToTarget(
+                targetPose);
+
+        double currentAngle =
+            getGyroAngle();
+
+        return aimPID.calculate(
+            currentAngle,
+            desiredAngle);
+    }
+
+    // ==================================================
+    // Pose Estimator
+    // ==================================================
+
     public Pose2d getPose() {
         return m_poseEstimator.getEstimatedPosition();
     }
 
-    public void resetOdometry(Pose2d pose) {
+    public void resetOdometry(
+            Pose2d pose) {
 
         m_poseEstimator.resetPosition(
-            Rotation2d.fromDegrees(getGyroAngle()),
+            Rotation2d.fromDegrees(
+                getGyroAngle()),
             getModulePositions(),
             pose);
     }
 
     public ChassisSpeeds getRobotRelativeSpeeds() {
 
-        return DriveConstants.kDriveKinematics.toChassisSpeeds(
-            m_frontLeft.getState(),
-            m_frontRight.getState(),
-            m_rearLeft.getState(),
-            m_rearRight.getState());
+        return DriveConstants.kDriveKinematics
+            .toChassisSpeeds(
+                m_frontLeft.getState(),
+                m_frontRight.getState(),
+                m_rearLeft.getState(),
+                m_rearRight.getState());
     }
+
+    // ==================================================
+    // AutoBuilder
+    // ==================================================
 
     private void configureAutoBuilder() {
 
@@ -163,16 +246,22 @@ public class DriveSubsystem extends SubsystemBase {
                 this::driveRobotRelative,
 
                 new PPHolonomicDriveController(
-                    new PIDConstants(5.0, 0.0, 0.0),
-                    new PIDConstants(5.0, 0.0, 0.0)
-                ),
+                    new PIDConstants(
+                        5.0,
+                        0.0,
+                        0.0),
+
+                    new PIDConstants(
+                        5.0,
+                        0.0,
+                        0.0)),
 
                 config,
 
                 () -> DriverStation.getAlliance()
-                    .map(
-                        alliance ->
-                        alliance == DriverStation.Alliance.Red)
+                    .map(alliance ->
+                        alliance
+                            == DriverStation.Alliance.Red)
                     .orElse(false),
 
                 this);
@@ -185,6 +274,10 @@ public class DriveSubsystem extends SubsystemBase {
         }
     }
 
+    // ==================================================
+    // Gyro
+    // ==================================================
+
     public double getGyroAngle() {
         return -m_gyro.getYaw();
     }
@@ -193,6 +286,10 @@ public class DriveSubsystem extends SubsystemBase {
         m_gyro.reset();
     }
 
+    // ==================================================
+    // Field Oriented
+    // ==================================================
+
     public void toggleFieldOriented() {
         m_fieldOriented = !m_fieldOriented;
     }
@@ -200,6 +297,10 @@ public class DriveSubsystem extends SubsystemBase {
     public boolean isFieldOriented() {
         return m_fieldOriented;
     }
+
+    // ==================================================
+    // Modules
+    // ==================================================
 
     public SwerveModulePosition[] getModulePositions() {
 
@@ -218,10 +319,17 @@ public class DriveSubsystem extends SubsystemBase {
             desiredStates,
             DriveConstants.kMaxSpeedMetersPerSecond);
 
-        m_frontLeft.setDesiredState(desiredStates[0]);
-        m_frontRight.setDesiredState(desiredStates[1]);
-        m_rearLeft.setDesiredState(desiredStates[2]);
-        m_rearRight.setDesiredState(desiredStates[3]);
+        m_frontLeft.setDesiredState(
+            desiredStates[0]);
+
+        m_frontRight.setDesiredState(
+            desiredStates[1]);
+
+        m_rearLeft.setDesiredState(
+            desiredStates[2]);
+
+        m_rearRight.setDesiredState(
+            desiredStates[3]);
     }
 
     public void resetEncoders() {
@@ -231,6 +339,10 @@ public class DriveSubsystem extends SubsystemBase {
         m_rearLeft.resetEncoders();
         m_rearRight.resetEncoders();
     }
+
+    // ==================================================
+    // X Lock
+    // ==================================================
 
     public void setX() {
 

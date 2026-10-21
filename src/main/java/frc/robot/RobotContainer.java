@@ -4,6 +4,8 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -15,7 +17,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 import frc.robot.Constants.IntakeConstants;
 import frc.robot.Constants.OperatorConstants;
-
+import frc.robot.Constants.Targets;
 import frc.robot.Commands.Intake;
 import frc.robot.Commands.Outtake;
 import frc.robot.Commands.Shooting;
@@ -24,6 +26,7 @@ import frc.robot.Commands.SpinUp;
 import frc.robot.subsystems.DriveSubsystem;
 import frc.robot.subsystems.FeederSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.VisionSubsystem;
 
 public class RobotContainer {
 
@@ -39,6 +42,9 @@ public class RobotContainer {
 
     private final FeederSubsystem m_Feeder =
         new FeederSubsystem();
+
+    private final VisionSubsystem m_Vision =
+        new VisionSubsystem();
 
     // =========================================
     // Controllers
@@ -65,6 +71,22 @@ public class RobotContainer {
     public RobotContainer() {
 
         registerNamedCommands();
+        autoChooser = new SendableChooser<>();
+        autoChooser.addOption("Left neutral", AutoBuilder.buildAuto("Left Neutral"));
+        autoChooser.addOption("Right neutral", AutoBuilder.buildAuto("Right Neutral"));
+        autoChooser.addOption("Middle shoot", AutoBuilder.buildAuto("Middle"));
+        autoChooser.addOption("Left", AutoBuilder.buildAuto("Left"));
+        autoChooser.addOption("Right", AutoBuilder.buildAuto("Right"));
+        autoChooser.addOption("Test", AutoBuilder.buildAuto("Test"));
+        autoChooser.addOption("Right Intake", AutoBuilder.buildAuto("Right Intake"));
+        autoChooser.addOption("Left Intake", AutoBuilder.buildAuto("Left Intake"));
+        autoChooser.addOption("Middle depo", AutoBuilder.buildAuto("Middle Shoot in"));
+        autoChooser.addOption("Middle sepo shoot", AutoBuilder.buildAuto("Middle Shoot in shoot"));
+        autoChooser.setDefaultOption("Do Nothing", new InstantCommand());
+        SmartDashboard.putData("Auto Chooser", autoChooser);
+
+
+        
 
         configureButtonBindings();
 
@@ -89,7 +111,6 @@ m_robotDrive.setDefaultCommand(
     )
 );
 
-        autoChooser = AutoBuilder.buildAutoChooser();
 
         SmartDashboard.putData(
             "Auto Chooser",
@@ -116,6 +137,43 @@ m_robotDrive.setDefaultCommand(
             .onTrue(
                 new InstantCommand(
                     m_robotDrive::zeroHeading));
+
+
+        //Limelight Aim            
+        m_driverController.leftTrigger().whileTrue(
+    new RunCommand(
+        () -> {
+
+            Pose2d target =
+                DriverStation.getAlliance()
+                    .orElse(DriverStation.Alliance.Blue)
+                    == DriverStation.Alliance.Red
+
+                        ? Targets.RED_TARGET
+                        : Targets.BLUE_TARGET;
+
+            double rot =
+                m_robotDrive.getAimRotation(target);
+
+            m_robotDrive.drive(
+
+                MathUtil.applyDeadband(
+                    -m_driverController.getLeftY(),
+                    OperatorConstants.kDriveDeadband),
+
+                MathUtil.applyDeadband(
+                    -m_driverController.getLeftX(),
+                    OperatorConstants.kDriveDeadband),
+
+                MathUtil.clamp(
+                    rot,
+                    -0.7,
+                    0.7));
+
+        },
+        m_robotDrive
+    )
+);
 
         // Intake
 
@@ -149,6 +207,8 @@ m_robotDrive.setDefaultCommand(
                                 m_Feeder,
                                 IntakeConstants.kFeedNeutralVelocity)));
 
+        
+
         // Shoot
 
         operatorController.rightTrigger()
@@ -166,6 +226,7 @@ m_robotDrive.setDefaultCommand(
                                 IntakeConstants.kShootTowerVelocity)));
 
         // Default commands
+        
 
         m_Intake.setDefaultCommand(
             new RunCommand(

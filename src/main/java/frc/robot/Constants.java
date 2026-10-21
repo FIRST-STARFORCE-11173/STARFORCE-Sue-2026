@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
@@ -131,4 +133,38 @@ public static final class AutoConstants {
   public static final class NeoMotorConstants {
     public static final double kFreeSpeedRpm = 5676;
   }
+
+
+
+  public static final class Targets {
+
+    public static final double FIELD_LENGTH = 16.5405;
+    public static final double FIELD_WIDTH = 8.0695;
+
+    public static final double CENTER_Y =
+        FIELD_WIDTH / 2.0;
+
+    public static final Pose2d BLUE_TARGET =
+        makeTarget(
+            4.625,
+            CENTER_Y);
+
+    public static final Pose2d RED_TARGET =
+        makeTarget(
+            FIELD_LENGTH - 4.625,
+            CENTER_Y);
+}
+
+private static Pose2d makeTarget(
+        double x,
+        double y) {
+
+    return new Pose2d(
+        x,
+        y,
+        Rotation2d.kZero);
+}
+
+
+
 }
